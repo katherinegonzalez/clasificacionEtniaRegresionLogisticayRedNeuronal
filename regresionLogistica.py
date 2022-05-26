@@ -25,6 +25,7 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score # combinación entre sensibilidad y precisión
 from sklearn.metrics import roc_auc_score
 from sklearn import preprocessing
+from time import time
 
 
 
@@ -48,7 +49,7 @@ X_pixeles = datos["pixeles"]
 
 X_train, X_test, y_train, y_test = train_test_split(X_pixeles, Y_etnia, test_size=0.30, random_state=420)
 
-# 1. Obtener variables dummies para poder etiquetar las estias en 0 y 1
+# Obtener variables dummies para poder etiquetar las estnias en 0 y 1
 y_train_reshaped = y_train.reshape(1, 16593)[0]
 y_test_reshaped = y_test.reshape(1, 7112)[0]
 
@@ -70,8 +71,9 @@ X_test_reshaped = X_test.reshape((nsamples_test,nx_test*ny_test))
 X_test_scaled = escalar.fit_transform(X_test_reshaped)
 
 
-#con y_dummies tengo 5 modelos, uno para cada etnia, or lo tanto:
+#con y_dummies tengo 5 modelos, uno para cada etnia, por lo tanto:
 mod = ["Modelo_0","Modelo_1","Modelo_2","Modelo_3","Modelo_4"] 
+start_time = time()
 for modelos in range(5):
     nsamples_y, nx_y = y_train_dummy.shape
     y_data_train = y_train_dummy[:,modelos].reshape(nsamples_y, )
@@ -82,35 +84,71 @@ for modelos in range(5):
     mod[modelos].fit(X_train_scaled, y_data_train)
     
     print("Terminó de entrenar el modelo: ", modelos+1 )
+elapsed_time = time() - start_time
+print("Terminó de entrenar los 5 modelos, su tiempo de ejecución en minutos fue de: ", elapsed_time /60)
 
-def Calificacion(X):   
+
+def getPrecision_score(tipo, y_pred, modelos):
+ if tipo == 'test':
+  nsamples_y, nx_y = y_test_dummy.shape
+  y_data_test = y_test_dummy[:,modelos].reshape(nsamples_y, )
+  precision = precision_score(y_data_test, y_pred)
+  #print('precision: ', precision)
+ if tipo == 'train':
+  nsamples_y, nx_y = y_train_dummy.shape
+  y_data_train = y_train_dummy[:,modelos].reshape(nsamples_y, )
+  precision = precision_score(y_data_train, y_pred)
+ return precision
+
+def getAccuracy(tipo, y_pred, modelos):
+ if tipo == 'test':
+  nsamples_y, nx_y = y_test_dummy.shape
+  y_data_test = y_test_dummy[:,modelos].reshape(nsamples_y, )
+  exactitud = accuracy_score(y_data_test, y_pred)
+ if tipo == 'train':
+  nsamples_y, nx_y = y_train_dummy.shape
+  y_data_train = y_train_dummy[:,modelos].reshape(nsamples_y, )
+  exactitud = accuracy_score(y_data_train, y_pred)
+ return exactitud    
+ 
+
+
+def Calificacion(X, tipo): 
+    suma_precision = 0
+    suma_exactitud = 0
     y_pred = ["Modelo_0","Modelo_1","Modelo_2","Modelo_3","Modelo_4"]
     for modelos in range(5):
         #Realizo una predicción
         y_pred[modelos] = mod[modelos].predict(X)
-
+        if(tipo):
+         suma_precision = suma_precision + getPrecision_score(tipo, y_pred[modelos], modelos)
+         suma_exactitud = suma_exactitud + getAccuracy(tipo, y_pred[modelos], modelos)
     predictions = pd.concat([pd.DataFrame(y_pred[0]), pd.DataFrame(y_pred[1]), pd.DataFrame(y_pred[2]), pd.DataFrame(y_pred[3]), pd.DataFrame(y_pred[4])], axis=1,)
     predictions.columns =['0', '1', '2', '3', '4']
     Valor = predictions.idxmax(axis = 1) 
+    if suma_precision != 0: 
+     print('precision total en ', tipo, ': ', suma_precision/5)
+    if suma_exactitud != 0:
+     print('accuracy total en ', tipo, ': ', suma_exactitud/5)
     return Valor
     
 
 #Validacion del modelo con train:
 y_real = y_train.reshape(16593, 1)
-y_estimada = Calificacion(X_train_scaled)
+y_estimada = Calificacion(X_train_scaled, 'train')
 K = numpy.zeros( ( 5, 5 ) )
 
 for i in range(y_real.shape[ 0 ]):
  K[ int( y_real[ i ] ), int( y_estimada[ i ] ) ] += 1
 # end for
-print('K: ', K)
+#print('K: ', K)
 Aciertos = numpy.trace(K)/y_real.shape[ 0 ]
 print("El porcentaje de imagenes bien clasificadas para train es de: ",Aciertos)
 
 
 #Validación con los datos de prueba:
 y_real_test = y_test.reshape(7112, 1)
-y_est_test = Calificacion(X_test_scaled)
+y_est_test = Calificacion(X_test_scaled, 'test')
 K_Test = numpy.zeros( ( 5, 5 ) )
 
 for i in range(y_est_test.shape[ 0 ]):
@@ -136,18 +174,18 @@ def getEtnia(numero):
   return 'Hispanic'
         
 
-# Archivo ejecutable para robar:
+# Archivo ejecutable para probar:
 def Ejecutable(image):
     if len(image.shape) == 3:
         image_fit = image.reshape(image.shape[0],48*48) 
-        etiqueta_fit = Calificacion(image_fit)
+        etiqueta_fit = Calificacion(image_fit, '')
         for l in range(image.shape[ 0 ]):
             print("La etnia de la persona es: ",getEtnia(etiqueta_fit[l]))
            
     else:
         image = cv2.resize(image, (48,48))
         image_fit = image.reshape(1,48*48) 
-        etiqueta_fit = Calificacion(image_fit)
+        etiqueta_fit = Calificacion(image_fit, '')
         print("La etnia de la persona es: ",getEtnia(etiqueta_fit[0]))
         
 ### Cargar imagen desde el computador
