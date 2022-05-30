@@ -14,21 +14,11 @@ Created on Tue May 24 00:14:42 2022
 
 import numpy
 import cv2
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import precision_score
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import f1_score # combinación entre sensibilidad y precisión
-from sklearn.metrics import roc_auc_score
-from sklearn import preprocessing
 from time import time
-from sklearn.neural_network import MLPRegressor
-from sklearn.metrics import classification_report
 from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import mean_squared_error
 
 
 
@@ -85,6 +75,10 @@ print("Termino de entrenar modelo Red Neuronal, su tiempo de ejecución en minut
 # predicciones
 prediccion_rn = modelo_rn.predict(X_test_scaled)
 print('prediccion: ', prediccion_rn)
+
+# RMSE
+RMSE_rn = mean_squared_error(y_test_reshaped, prediccion_rn, squared=False)
+print('RMSE_rn: ', RMSE_rn)
 
 #%%
 
